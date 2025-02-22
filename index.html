@@ -16,7 +16,7 @@
     async function loadDynamicTable() {
       try {
         // JSONデータの取得（正しいURLに変更する）
-        const response = await fetch('../00.json');
+        const response = await fetch('/00.json');
         if (!response.ok) {
           throw new Error(`HTTPエラー: ${response.status}`);
         }
