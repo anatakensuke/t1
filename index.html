@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSONデータから動的テーブル生成</title>
+</head>
+<body>
+  <h2>外部JSONを利用した動的テーブル</h2>
+  <table border="1" id="dynamic-table">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadDynamicTable() {
+      try {
+        // JSONデータの取得（正しいURLに変更する）
+        const response = await fetch('../00.json');
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        const jsonData = await response.json();
+        console.log("取得データ:", jsonData);
+
+        // データ構造が正しいか確認
+        if (!Array.isArray(jsonData) || jsonData.length === 0) {
+          throw new Error("JSONデータがリスト形式ではありません");
+        }
+
+        // JSONデータの最初の要素を取得（配列の0番目）
+        const firstEntry = jsonData[0];
+        const dateKey = Object.keys(firstEntry)[0];  // 例: "2025-02-22"
+        const stocks = firstEntry[dateKey];          // 例: { "AAPL": 1.60796, "MSFT": 3.21293, "GOOG": 2.02391 }
+
+        console.log("日付:", dateKey);
+        console.log("株データ:", stocks);
+
+        // テーブルヘッダーを作成
+        const thead = document.querySelector("#dynamic-table thead");
+        thead.innerHTML = "";
+        const headerRow = document.createElement("tr");
+
+        // カラム（ヘッダー）設定
+        const columns = ["Date", ...Object.keys(stocks)];
+        columns.forEach(col => {
+          const th = document.createElement("th");
+          th.textContent = col;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        // テーブルボディを作成
+        const tbody = document.querySelector("#dynamic-table tbody");
+        tbody.innerHTML = "";
+        
+        // 1行のデータ作成
+        const tr = document.createElement("tr");
+        tr.appendChild(createCell(dateKey)); // 日付を1列目に追加
+        Object.values(stocks).forEach(value => {
+          tr.appendChild(createCell(value));
+        });
+        tbody.appendChild(tr);
+
+      } catch (error) {
+        console.error('データ取得エラー:', error);
+      }
+    }
+
+    // TD要素を作成するヘルパー関数
+    function createCell(value) {
+      const td = document.createElement("td");
+      td.textContent = value;
+      return td;
+    }
+
+    document.addEventListener("DOMContentLoaded", loadDynamicTable);
+  </script>
+</body>
+</html>
