@@ -18,7 +18,7 @@
         // JSONデータの取得（正しいURLに変更する）
         const response = await fetch('/00.json');
         if (!response.ok) {
-          throw new Error(`HTTPエラー: ${response.status}`);
+          throw new Error(`HTTdPエラー: ${response.status}`);
         }
         const jsonData = await response.json();
         console.log("取得データ:", jsonData);
