@@ -4,45 +4,95 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JSONデータから動的テーブル生成</title>
+  <style>
+    .tabs { display: flex; margin-bottom: 10px; }
+    .tab { padding: 10px; cursor: pointer; background: #ddd; margin-right: 5px; }
+    .tab.active { background: #bbb; font-weight: bold; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid black; padding: 8px; text-align: center; }
+  </style>
 </head>
 <body>
-  <h2>外部JSONを利用した動的テーブル</h2>
-  <table border="1" id="dynamic-table">
-    <thead></thead>
-    <tbody></tbody>
-  </table>
+
+  <h2>外部JSONを利用した動的テーブル（年を削除）</h2>
+
+  <!-- タブ -->
+  <div class="tabs">
+    <div class="tab active" data-tab="table1">データセット1</div>
+    <div class="tab" data-tab="table2">データセット2</div>
+  </div>
+
+  <!-- タブごとのテーブル -->
+  <div id="table1" class="tab-content active">
+    <table border="1" data-url="/00.json">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="table2" class="tab-content">
+    <table border="1" data-url="/01.json">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
-    async function loadDynamicTable() {
+    // タブ切り替え処理
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    // 動的テーブル生成
+    async function loadDynamicTable(table) {
       try {
-        // JSONデータの取得（正しいURLに変更する）
-        const response = await fetch('/00.json');
+        const url = table.getAttribute("data-url");
+        const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`HTTdPエラー: ${response.status}`);
+          throw new Error(`HTTPエラー: ${response.status}`);
         }
         const jsonData = await response.json();
-        console.log("取得データ:", jsonData);
 
-        // データ構造が正しいか確認
         if (!Array.isArray(jsonData) || jsonData.length === 0) {
-          throw new Error("JSONデータがリスト形式ではありません");
+          throw new Error(`JSONデータ (${url}) がリスト形式ではありません`);
         }
 
-        // JSONデータの最初の要素を取得（配列の0番目）
-        const firstEntry = jsonData[0];
-        const dateKey = Object.keys(firstEntry)[0];  // 例: "2025-02-22"
-        const stocks = firstEntry[dateKey];          // 例: { "AAPL": 1.60796, "MSFT": 3.21293, "GOOG": 2.02391 }
+        // データの転置
+        const dates = [];
+        const stockMap = {}; // { "AAPL": [値1, 値2], "MSFT": [値1, 値2] }
 
-        console.log("日付:", dateKey);
-        console.log("株データ:", stocks);
+        jsonData.forEach(entry => {
+          const fullDate = Object.keys(entry)[0];  // "YYYY-MM-DD"
+          const shortDate = fullDate.slice(5); // "MM-DD" のみ取得
+          dates.push(shortDate);
 
-        // テーブルヘッダーを作成
-        const thead = document.querySelector("#dynamic-table thead");
+          const stockData = entry[fullDate];
+
+          Object.keys(stockData).forEach(stock => {
+            if (!stockMap[stock]) {
+              stockMap[stock] = [];
+            }
+            stockMap[stock].push(stockData[stock].toFixed(2)); // 小数点2桁
+          });
+        });
+
+        // テーブル作成
+        const columns = ["Stock", ...dates]; // 最初の列は"Stock"（銘柄名）
+        const thead = table.querySelector("thead");
+        const tbody = table.querySelector("tbody");
         thead.innerHTML = "";
-        const headerRow = document.createElement("tr");
+        tbody.innerHTML = "";
 
-        // カラム（ヘッダー）設定
-        const columns = ["Date", ...Object.keys(stocks)];
+        // ヘッダー生成
+        const headerRow = document.createElement("tr");
         columns.forEach(col => {
           const th = document.createElement("th");
           th.textContent = col;
@@ -50,31 +100,30 @@
         });
         thead.appendChild(headerRow);
 
-        // テーブルボディを作成
-        const tbody = document.querySelector("#dynamic-table tbody");
-        tbody.innerHTML = "";
-        
-        // 1行のデータ作成
-        const tr = document.createElement("tr");
-        tr.appendChild(createCell(dateKey)); // 日付を1列目に追加
-        Object.values(stocks).forEach(value => {
-          tr.appendChild(createCell(value));
+        // データを行ごとに追加
+        Object.keys(stockMap).forEach(stock => {
+          const tr = document.createElement("tr");
+          const tdStock = document.createElement("td");
+          tdStock.textContent = stock;
+          tr.appendChild(tdStock);
+
+          stockMap[stock].forEach(value => {
+            const td = document.createElement("td");
+            td.textContent = value;
+            tr.appendChild(td);
+          });
+
+          tbody.appendChild(tr);
         });
-        tbody.appendChild(tr);
 
       } catch (error) {
-        console.error('データ取得エラー:', error);
+        console.error(`データ取得エラー (${table.getAttribute("data-url")}):`, error);
       }
     }
 
-    // TD要素を作成するヘルパー関数
-    function createCell(value) {
-      const td = document.createElement("td");
-      td.textContent = value;
-      return td;
-    }
-
-    document.addEventListener("DOMContentLoaded", loadDynamicTable);
+    // 各テーブルをロード
+    document.querySelectorAll("table").forEach(loadDynamicTable);
   </script>
+
 </body>
 </html>
