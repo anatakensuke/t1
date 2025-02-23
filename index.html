@@ -12,6 +12,8 @@
     .tab-content.active { display: block; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid black; padding: 8px; text-align: center; }
+    .higher { background-color: lightgreen; } /* 増加 */
+    .lower  { background-color: lightcoral; } /* 減少 */
   </style>
 </head>
 <body>
@@ -22,6 +24,8 @@
   <div class="tabs">
     <div class="tab active" data-tab="table1">データセット1</div>
     <div class="tab" data-tab="table2">データセット2</div>
+    <div class="tab" data-tab="table3">データセット3</div>
+    <div class="tab" data-tab="table3">データセット4</div>
   </div>
 
   <!-- タブごとのテーブル -->
@@ -33,7 +37,21 @@
   </div>
 
   <div id="table2" class="tab-content">
-    <table border="1" data-url="/01.json">
+    <table border="1" data-url="01.json">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="table3" class="tab-content">
+    <table border="1" data-url="02.json">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="table4" class="tab-content">
+    <table border="1" data-url="03.json">
       <thead></thead>
       <tbody></tbody>
     </table>
@@ -116,13 +134,39 @@
           tbody.appendChild(tr);
         });
 
+        // セルの比較処理を適用
+        applyColorComparison(table);
+
       } catch (error) {
         console.error(`データ取得エラー (${table.getAttribute("data-url")}):`, error);
       }
     }
 
+    // セルの値を比較して色を付ける
+    function applyColorComparison(table) {
+      const rows = table.querySelectorAll("tbody tr");
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+
+        for (let i = 1; i < cells.length - 1; i++) {
+          let current = parseFloat(cells[i].textContent);
+          let next = parseFloat(cells[i + 1].textContent);
+
+          if (!isNaN(current) && !isNaN(next)) {
+            if (current > next) {
+              cells[i].classList.add("higher"); // 増加 → 緑
+            } else if (current < next) {
+              cells[i].classList.add("lower");  // 減少 → 赤
+            }
+          }
+        }
+      });
+    }
+
     // 各テーブルをロード
     document.querySelectorAll("table").forEach(loadDynamicTable);
+
   </script>
 
 </body>
