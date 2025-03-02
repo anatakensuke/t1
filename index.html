@@ -3,170 +3,159 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSONデータから動的テーブル生成</title>
+  <title>JSONデータから統合テーブル生成</title>
   <style>
-    .tabs { display: flex; margin-bottom: 10px; }
-    .tab { padding: 10px; cursor: pointer; background: #ddd; margin-right: 5px; }
-    .tab.active { background: #bbb; font-weight: bold; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid black; padding: 8px; text-align: center; }
-    .higher { background-color: lightgreen; } /* 増加 */
-    .lower  { background-color: lightcoral; } /* 減少 */
+    .higher { background-color: lightgreen; } /* どちらかが増加 */
+    .lower  { background-color: lightcoral; } /* どちらかが減少 */
+    .highlight { background-color: yellow !important; } /* 特定セルのハイライト */
+    td div { font-size: 0.9em; line-height: 1.2em; }
   </style>
 </head>
 <body>
 
-  <h2>動的テーブル</h2>
+  <h2>統合テーブル</h2>
 
-  <!-- タブ -->
-  <div class="tabs">
-    <div class="tab active" data-tab="table1">CurrentQ</div>
-    <div class="tab" data-tab="table2">CurrentY</div>
-    <div class="tab" data-tab="table3">NextQ</div>
-    <div class="tab" data-tab="table3">NextY</div>
-  </div>
-
-  <!-- タブごとのテーブル -->
-  <div id="table1" class="tab-content active">
-    <table border="1" data-url="00.json">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="table2" class="tab-content">
-    <table border="1" data-url="01.json">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="table3" class="tab-content">
-    <table border="1" data-url="02.json">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="table4" class="tab-content">
-    <table border="1" data-url="03.json">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <table>
+    <thead></thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    // タブ切り替え処理
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-        
-        tab.classList.add("active");
-        document.getElementById(tab.dataset.tab).classList.add("active");
-      });
-    });
+    // ハイライト対象のセル（銘柄名と日付）
+    const highlightCells = {
+      "AAPL": ["02-25", "02-26"],
+      "GOOG": ["11-30"],
+      "NVDA": ["02-27"]
+    };
 
-    // 動的テーブル生成
-    async function loadDynamicTable(table) {
+    async function loadAndMergeTables() {
       try {
-        const url = table.getAttribute("data-url");
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTPエラー: ${response.status}`);
+        // 2つのJSONを取得
+        const [response1, response2] = await Promise.all([
+          fetch("00.json"),
+          fetch("01.json")
+        ]);
+
+        if (!response1.ok || !response2.ok) {
+          throw new Error("JSONファイルの読み込みに失敗しました");
         }
-        const jsonData = await response.json();
 
-        if (!Array.isArray(jsonData) || jsonData.length === 0) {
-          throw new Error(`JSONデータ (${url}) がリスト形式ではありません`);
-        }
+        const jsonData1 = await response1.json();
+        const jsonData2 = await response2.json();
 
-        // データの転置
-        const dates = [];
-        const stockMap = {}; // { "AAPL": [値1, 値2], "MSFT": [値1, 値2] }
+        // データ統合
+        const dates = new Set();
+        const stockMap = {};
 
-        jsonData.forEach(entry => {
-          const fullDate = Object.keys(entry)[0];  // "YYYY-MM-DD"
-          const shortDate = fullDate.slice(5); // "MM-DD" のみ取得
-          dates.push(shortDate);
+        function processJson(jsonData, datasetKey) {
+          jsonData.forEach(entry => {
+            const fullDate = Object.keys(entry)[0];  // YYYY-MM-DD
+            const shortDate = fullDate.slice(5); // MM-DD
+            dates.add(shortDate);
 
-          const stockData = entry[fullDate];
+            const stockData = entry[fullDate];
 
-          Object.keys(stockData).forEach(stock => {
-            if (!stockMap[stock]) {
-              stockMap[stock] = [];
-            }
-            stockMap[stock].push(stockData[stock].toFixed(2)); // 小数点2桁
+            Object.keys(stockData).forEach(stock => {
+              if (!stockMap[stock]) stockMap[stock] = {};
+              if (!stockMap[stock][shortDate]) stockMap[stock][shortDate] = {};
+              stockMap[stock][shortDate][datasetKey] = stockData[stock].toFixed(2);
+            });
           });
-        });
+        }
+
+        processJson(jsonData1, "currentQ");
+        processJson(jsonData2, "currentY");
+
+        // 日付をソート（新しい順）
+        const sortedDates = Array.from(dates).sort((a, b) => new Date(`2000-${b}`) - new Date(`2000-${a}`));
 
         // テーブル作成
-        const columns = ["Stock", ...dates]; // 最初の列は"Stock"（銘柄名）
+        const table = document.querySelector("table");
         const thead = table.querySelector("thead");
         const tbody = table.querySelector("tbody");
         thead.innerHTML = "";
         tbody.innerHTML = "";
 
-        // ヘッダー生成
+        // ヘッダー作成
         const headerRow = document.createElement("tr");
-        columns.forEach(col => {
+        headerRow.appendChild(document.createElement("th")).textContent = "Stock";
+        sortedDates.forEach(date => {
           const th = document.createElement("th");
-          th.textContent = col;
+          th.textContent = date;
           headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
 
-        // データを行ごとに追加
+        // データ行の作成
         Object.keys(stockMap).forEach(stock => {
           const tr = document.createElement("tr");
           const tdStock = document.createElement("td");
           tdStock.textContent = stock;
           tr.appendChild(tdStock);
 
-          stockMap[stock].forEach(value => {
+          sortedDates.forEach(date => {
             const td = document.createElement("td");
-            td.textContent = value;
+            const qValue = stockMap[stock][date]?.currentQ || "--";
+            const yValue = stockMap[stock][date]?.currentY || "--";
+            td.innerHTML = `<div>${qValue}</div><div>${yValue}</div>`;
+
+            // ハイライト処理
+            if (highlightCells[stock] && highlightCells[stock].includes(date)) {
+              td.classList.add("highlight");
+            }
+
             tr.appendChild(td);
           });
 
           tbody.appendChild(tr);
         });
 
-        // セルの比較処理を適用
-        applyColorComparison(table);
+        // セルの増減比較（修正ポイント）
+        applyColorComparison();
 
       } catch (error) {
-        console.error(`データ取得エラー (${table.getAttribute("data-url")}):`, error);
+        console.error("データの読み込みまたは統合に失敗しました:", error);
       }
     }
 
-    // セルの値を比較して色を付ける
-    function applyColorComparison(table) {
-      const rows = table.querySelectorAll("tbody tr");
-      
+    // セルの値を比較して色を付ける（どちらかが増加なら緑、どちらかが減少なら赤）
+    function applyColorComparison() {
+      const rows = document.querySelectorAll("tbody tr");
+
       rows.forEach(row => {
         const cells = row.querySelectorAll("td");
 
         for (let i = 1; i < cells.length - 1; i++) {
-          let current = parseFloat(cells[i].textContent);
-          let next = parseFloat(cells[i + 1].textContent);
+          const [currentTop, currentBottom] = cells[i].innerText.split("\n").map(parseFloat);
+          const [nextTop, nextBottom] = cells[i + 1].innerText.split("\n").map(parseFloat);
 
-          if (!isNaN(current) && !isNaN(next)) {
-            if (current > next) {
-              cells[i].classList.add("higher"); // 増加 → 緑
-            } else if (current < next) {
-              cells[i].classList.add("lower");  // 減少 → 赤
-            }
+          let isHigher = false;
+          let isLower = false;
+
+          if (!isNaN(currentTop) && !isNaN(nextTop)) {
+            if (currentTop > nextTop) isHigher = true;
+            if (currentTop < nextTop) isLower = true;
+          }
+
+          if (!isNaN(currentBottom) && !isNaN(nextBottom)) {
+            if (currentBottom > nextBottom) isHigher = true;
+            if (currentBottom < nextBottom) isLower = true;
+          }
+
+          if (isHigher) {
+            cells[i].classList.add("higher");
+          }
+          if (isLower) {
+            cells[i].classList.add("lower");
           }
         }
       });
     }
 
-    // 各テーブルをロード
-    document.querySelectorAll("table").forEach(loadDynamicTable);
-
+    // ページロード時に実行
+    document.addEventListener("DOMContentLoaded", loadAndMergeTables);
   </script>
 
 </body>
