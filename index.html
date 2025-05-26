@@ -62,8 +62,8 @@
     }
 
     async function buildTable() {
-      const dataQ = await loadCSV("0q.csv");
-      const dataY = await loadCSV("0y.csv");
+      const dataQ = await loadCSV("to_t1_0q.csv");
+      const dataY = await loadCSV("to_t1_0y.csv");
 
       const headers = Object.keys(dataQ[0]);
       const thead = document.querySelector("#merged-table thead");
