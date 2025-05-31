@@ -61,14 +61,21 @@
       });
     }
 
+    function isNumeric(value) {
+      return !isNaN(parseFloat(value)) && isFinite(value);
+    }
+
     async function buildTable() {
       const dataQ = await loadCSV("to_t1_0q.csv");
       const dataY = await loadCSV("to_t1_0y.csv");
 
-      const headers = Array.from(new Set([
-        ...Object.keys(dataQ[0] || {}),
-        ...Object.keys(dataY[0] || {})
-      ]));
+      if (dataQ.length === 0 && dataY.length === 0) return;
+
+      // ヘッダー統一：Qのヘッダーを優先し、YにあってQにないものを追加
+      const headersQ = Object.keys(dataQ[0] || {});
+      const headersY = Object.keys(dataY[0] || {});
+      const extraHeaders = headersY.filter(h => !headersQ.includes(h));
+      const headers = [...headersQ, ...extraHeaders];
 
       const thead = document.querySelector("#merged-table thead");
       const tbody = document.querySelector("#merged-table tbody");
@@ -84,7 +91,7 @@
         return dateB - dateA;
       });
 
-      // ヘッダー作成
+      // ヘッダー行作成
       const headRow = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
@@ -93,23 +100,22 @@
       });
       thead.appendChild(headRow);
 
-      // 行作成
+      // 行生成
       symbols.forEach(symbol => {
         const rowQ = mapQ[symbol] || {};
         const rowY = mapY[symbol] || {};
         const tr = document.createElement("tr");
 
-        headers.forEach((h, index) => {
+        headers.forEach(h => {
           const td = document.createElement("td");
 
           const valQ = (rowQ[h] || "").trim();
           const valY = (rowY[h] || "").trim();
 
-          if (index <= 5) {
-            td.textContent = valQ || valY || "";
-          } else {
-            const numQ = parseFloat(valQ);
-            const numY = parseFloat(valY);
+          const numQ = parseFloat(valQ);
+          const numY = parseFloat(valY);
+
+          if (isNumeric(valQ) || isNumeric(valY)) {
             let topClass = "", bottomClass = "";
 
             if (!isNaN(numQ) && !isNaN(numY)) {
@@ -122,9 +128,11 @@
 
             td.innerHTML = `
               <div class="cell-stack">
-                <div class="cell-top ${topClass}">${valQ}</div>
-                <div class="cell-bottom ${bottomClass}">${valY}</div>
+                <div class="cell-top ${topClass}">${valQ || ""}</div>
+                <div class="cell-bottom ${bottomClass}">${valY || ""}</div>
               </div>`;
+          } else {
+            td.textContent = valQ || valY || "";
           }
 
           tr.appendChild(td);
