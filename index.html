@@ -56,27 +56,21 @@
           download: true,
           header: true,
           skipEmptyLines: true,
+          dynamicTyping: true,
           complete: (results) => resolve(results.data)
         });
       });
     }
 
     function isNumeric(value) {
-      return !isNaN(parseFloat(value)) && isFinite(value);
+      return typeof value === 'number' && !isNaN(value);
     }
 
     async function buildTable() {
       const dataQ = await loadCSV("to_t1_0q.csv");
       const dataY = await loadCSV("to_t1_0y.csv");
 
-      if (dataQ.length === 0 && dataY.length === 0) return;
-
-      // ヘッダー統一：Qのヘッダーを優先し、YにあってQにないものを追加
-      const headersQ = Object.keys(dataQ[0] || {});
-      const headersY = Object.keys(dataY[0] || {});
-      const extraHeaders = headersY.filter(h => !headersQ.includes(h));
-      const headers = [...headersQ, ...extraHeaders];
-
+      const headers = Object.keys(dataQ[0] || {});
       const thead = document.querySelector("#merged-table thead");
       const tbody = document.querySelector("#merged-table tbody");
 
@@ -84,14 +78,13 @@
       const mapY = Object.fromEntries(dataY.map(row => [row.Symbol, row]));
 
       const symbols = Array.from(new Set([...Object.keys(mapQ), ...Object.keys(mapY)]));
-
       symbols.sort((a, b) => {
         const dateA = new Date(mapQ[a]?.Previous || "1900-01-01");
         const dateB = new Date(mapQ[b]?.Previous || "1900-01-01");
         return dateB - dateA;
       });
 
-      // ヘッダー行作成
+      // ヘッダー作成
       const headRow = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
@@ -100,48 +93,42 @@
       });
       thead.appendChild(headRow);
 
-      // 行生成
+      // データ行作成
       symbols.forEach(symbol => {
         const rowQ = mapQ[symbol] || {};
         const rowY = mapY[symbol] || {};
         const tr = document.createElement("tr");
 
         headers.forEach(h => {
+          const valQ = rowQ[h] ?? "";
+          const valY = rowY[h] ?? "";
+
           const td = document.createElement("td");
 
-          const valQ = (rowQ[h] || "").trim();
-          const valY = (rowY[h] || "").trim();
+          let topClass = "", bottomClass = "";
 
-          const numQ = parseFloat(valQ);
-          const numY = parseFloat(valY);
-
-          if (isNumeric(valQ) || isNumeric(valY)) {
-            let topClass = "", bottomClass = "";
-
-            if (!isNaN(numQ) && !isNaN(numY)) {
-              if (numQ > numY) topClass = "down";
-              else if (numQ < numY) topClass = "up";
-
-              if (numY > numQ) bottomClass = "down";
-              else if (numY < numQ) bottomClass = "up";
+          if (isNumeric(valQ) && isNumeric(valY)) {
+            if (valQ > valY) {
+              topClass = "down";
+              bottomClass = "up";
+            } else if (valQ < valY) {
+              topClass = "up";
+              bottomClass = "down";
             }
-
-            td.innerHTML = `
-              <div class="cell-stack">
-                <div class="cell-top ${topClass}">${valQ || ""}</div>
-                <div class="cell-bottom ${bottomClass}">${valY || ""}</div>
-              </div>`;
-          } else {
-            td.textContent = valQ || valY || "";
           }
 
+          td.innerHTML = `
+            <div class="cell-stack">
+              <div class="cell-top ${topClass}">${valQ}</div>
+              <div class="cell-bottom ${bottomClass}">${isNumeric(valY) ? valY : ""}</div>
+            </div>
+          `;
           tr.appendChild(td);
         });
 
         tbody.appendChild(tr);
       });
 
-      // DataTables 初期化
       $('#merged-table').DataTable({
         paging: false,
         scrollX: true,
