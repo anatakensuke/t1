@@ -5,20 +5,23 @@
   <title>EPS 表示</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 40px;
     }
-    table {
-      min-width: 100%;
-      font-size: 14px;
+    table.dataTable {
       border-collapse: collapse;
       table-layout: fixed;
+      width: 100% !important;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 6px;
       text-align: center;
+      font-size: 14px;
       white-space: nowrap;
     }
     .up {
@@ -42,7 +45,7 @@
 <body>
 
   <h2>EPS（current quarter：上段 / current year：下段）</h2>
-  <table id="merged-table" style="width:100%">
+  <table id="merged-table" class="display" style="width:100%">
     <thead></thead>
     <tbody></tbody>
   </table>
@@ -82,6 +85,7 @@
         return dateB - dateA;
       });
 
+      // ヘッダー
       const headRow = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
@@ -90,6 +94,7 @@
       });
       thead.appendChild(headRow);
 
+      // データ行
       symbols.forEach(symbol => {
         const rowQ = mapQ[symbol] || {};
         const rowY = mapY[symbol] || {};
@@ -132,6 +137,7 @@
 
       const table = $('#merged-table').DataTable({
         scrollX: true,
+        autoWidth: false,
         paging: false,
         lengthChange: false,
         searching: false,
@@ -143,7 +149,6 @@
         }
       });
 
-      // カラム幅の調整
       table.columns.adjust();
     }
 
