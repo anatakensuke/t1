@@ -10,14 +10,16 @@
       margin: 40px;
     }
     table {
-      width: 100%;
+      min-width: 100%;
       font-size: 14px;
       border-collapse: collapse;
+      table-layout: fixed;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 6px;
       text-align: center;
+      white-space: nowrap;
     }
     .up {
       color: green;
@@ -40,7 +42,7 @@
 <body>
 
   <h2>EPS（current quarter：上段 / current year：下段）</h2>
-  <table id="merged-table">
+  <table id="merged-table" style="width:100%">
     <thead></thead>
     <tbody></tbody>
   </table>
@@ -83,7 +85,6 @@
       const headRow = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
-        th.className = "no-sort";
         th.textContent = h;
         headRow.appendChild(th);
       });
@@ -129,7 +130,7 @@
         tbody.appendChild(tr);
       });
 
-      $('#merged-table').DataTable({
+      const table = $('#merged-table').DataTable({
         scrollX: true,
         paging: false,
         lengthChange: false,
@@ -141,6 +142,9 @@
           url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ja.json"
         }
       });
+
+      // カラム幅の調整
+      table.columns.adjust();
     }
 
     buildTable();
