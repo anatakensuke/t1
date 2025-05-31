@@ -65,7 +65,11 @@
       const dataQ = await loadCSV("to_t1_0q.csv");
       const dataY = await loadCSV("to_t1_0y.csv");
 
-      const headers = Object.keys(dataQ[0]);
+      const headers = Array.from(new Set([
+        ...Object.keys(dataQ[0] || {}),
+        ...Object.keys(dataY[0] || {})
+      ]));
+
       const thead = document.querySelector("#merged-table thead");
       const tbody = document.querySelector("#merged-table tbody");
 
@@ -80,7 +84,7 @@
         return dateB - dateA;
       });
 
-      // ヘッダー生成
+      // ヘッダー作成
       const headRow = document.createElement("tr");
       headers.forEach(h => {
         const th = document.createElement("th");
@@ -89,7 +93,7 @@
       });
       thead.appendChild(headRow);
 
-      // 各行の生成
+      // 行作成
       symbols.forEach(symbol => {
         const rowQ = mapQ[symbol] || {};
         const rowY = mapY[symbol] || {};
@@ -102,7 +106,7 @@
           const valY = (rowY[h] || "").trim();
 
           if (index <= 5) {
-            td.textContent = valQ;
+            td.textContent = valQ || valY || "";
           } else {
             const numQ = parseFloat(valQ);
             const numY = parseFloat(valY);
@@ -129,7 +133,7 @@
         tbody.appendChild(tr);
       });
 
-      // DataTables 初期化（ページングなし、情報表示なし）
+      // DataTables 初期化
       $('#merged-table').DataTable({
         paging: false,
         scrollX: true,
