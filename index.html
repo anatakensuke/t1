@@ -5,27 +5,31 @@
   <title>EPS 表示</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 40px;
     }
-    table {
-      width: 100%;
-      font-size: 14px;
+    table.dataTable {
       border-collapse: collapse;
+      table-layout: fixed;
+      width: 100% !important;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 6px;
       text-align: center;
+      font-size: 14px;
       white-space: nowrap;
     }
     .up {
-      color: green;
+      color: red; /* 増加 → 赤 */
       font-weight: bold;
     }
     .down {
-      color: red;
+      color: green; /* 減少 → 緑 */
       font-weight: bold;
     }
     .cell-stack {
@@ -41,7 +45,7 @@
 <body>
 
   <h2>EPS（current quarter：上段 / current year：下段）</h2>
-  <table id="merged-table">
+  <table id="merged-table" class="display" style="width:100%">
     <thead></thead>
     <tbody></tbody>
   </table>
@@ -75,7 +79,6 @@
 
       const symbols = Array.from(new Set([...Object.keys(mapQ), ...Object.keys(mapY)]));
 
-      // ソート（Previous日付）
       symbols.sort((a, b) => {
         const dateA = new Date(mapQ[a]?.Previous || "1900-01-01");
         const dateB = new Date(mapQ[b]?.Previous || "1900-01-01");
@@ -91,57 +94,45 @@
       });
       thead.appendChild(headRow);
 
-      // ボディ作成
+      // 行ごとに作成
       symbols.forEach(symbol => {
         const rowQ = mapQ[symbol] || {};
         const rowY = mapY[symbol] || {};
         const tr = document.createElement("tr");
 
-        headers.forEach((h, i) => {
+        headers.forEach((h, index) => {
           const td = document.createElement("td");
           const valQ = (rowQ[h] || "").trim();
           const valY = (rowY[h] || "").trim();
-          let topClass = "", bottomClass = "";
 
-          if (i <= 4) {
-            // 1段表示（共通値）
+          if (index <= 5) {
             td.textContent = valQ;
-          } else if (h === "Reported") {
-            // Reported vs Estimate（Q/Y）
-            const estQ = parseFloat((rowQ["Estimate"] || "").trim());
-            const repQ = parseFloat(valQ);
-            const estY = parseFloat((rowY["Estimate"] || "").trim());
-            const repY = parseFloat(valY);
-            if (!isNaN(repQ) && !isNaN(estQ)) topClass = repQ > estQ ? "up" : (repQ < estQ ? "down" : "");
-            if (!isNaN(repY) && !isNaN(estY)) bottomClass = repY > estY ? "up" : (repY < estY ? "down" : "");
-
-            td.innerHTML = `
-              <div class="cell-stack">
-                <div class="cell-top ${topClass}">${valQ}</div>
-                <div class="cell-bottom ${bottomClass}">${valY}</div>
-              </div>`;
-          } else if (i >= 6 && i < headers.length - 1) {
-            // 日付列：右隣と比較（増加 → 緑）
-            const nextH = headers[i + 1];
-            const nextQ = parseFloat((rowQ[nextH] || "").trim());
-            const currQ = parseFloat(valQ);
-            const nextY = parseFloat((rowY[nextH] || "").trim());
-            const currY = parseFloat(valY);
-
-            if (!isNaN(currQ) && !isNaN(nextQ)) topClass = currQ > nextQ ? "up" : (currQ < nextQ ? "down" : "");
-            if (!isNaN(currY) && !isNaN(nextY)) bottomClass = currY > nextY ? "up" : (currY < nextY ? "down" : "");
-
-            td.innerHTML = `
-              <div class="cell-stack">
-                <div class="cell-top ${topClass}">${valQ}</div>
-                <div class="cell-bottom ${bottomClass}">${valY}</div>
-              </div>`;
           } else {
-            // Guidanceなど上下段表示のみ
+            const numQ = parseFloat(valQ);
+            const numY = parseFloat(valY);
+
+            let topClass = "", bottomClass = "";
+
+            if (index < headers.length - 1) {
+              const nextH = headers[index + 1];
+              const nextQ = parseFloat((rowQ[nextH] || "").trim());
+              const nextY = parseFloat((rowY[nextH] || "").trim());
+
+              if (!isNaN(numQ) && !isNaN(nextQ)) {
+                if (numQ < nextQ) topClass = "up";       // 増加 → 赤
+                else if (numQ > nextQ) topClass = "down"; // 減少 → 緑
+              }
+
+              if (!isNaN(numY) && !isNaN(nextY)) {
+                if (numY < nextY) bottomClass = "up";       // 増加 → 赤
+                else if (numY > nextY) bottomClass = "down"; // 減少 → 緑
+              }
+            }
+
             td.innerHTML = `
               <div class="cell-stack">
-                <div class="cell-top">${valQ}</div>
-                <div class="cell-bottom">${valY}</div>
+                <div class="cell-top ${topClass}">${valQ}</div>
+                <div class="cell-bottom ${bottomClass}">${valY}</div>
               </div>`;
           }
 
@@ -153,6 +144,7 @@
 
       $('#merged-table').DataTable({
         scrollX: true,
+        autoWidth: false,
         paging: false,
         lengthChange: false,
         searching: false,
